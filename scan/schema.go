@@ -68,7 +68,9 @@ func (st schemaTypable) AdditionalProperties() swaggerTypable {
 	st.schema.Typed("object", "")
 	return schemaTypable{st.schema.AdditionalProperties.Schema, st.level + 1}
 }
-func (st schemaTypable) Level() int { return st.level }
+func (st schemaTypable) Level() int {
+	return st.level
+}
 
 type schemaValidations struct {
 	current *spec.Schema
@@ -82,13 +84,27 @@ func (sv schemaValidations) SetMinimum(val float64, exclusive bool) {
 	sv.current.Minimum = &val
 	sv.current.ExclusiveMinimum = exclusive
 }
-func (sv schemaValidations) SetMultipleOf(val float64) { sv.current.MultipleOf = &val }
-func (sv schemaValidations) SetMinItems(val int64)     { sv.current.MinItems = &val }
-func (sv schemaValidations) SetMaxItems(val int64)     { sv.current.MaxItems = &val }
-func (sv schemaValidations) SetMinLength(val int64)    { sv.current.MinLength = &val }
-func (sv schemaValidations) SetMaxLength(val int64)    { sv.current.MaxLength = &val }
-func (sv schemaValidations) SetPattern(val string)     { sv.current.Pattern = val }
-func (sv schemaValidations) SetUnique(val bool)        { sv.current.UniqueItems = val }
+func (sv schemaValidations) SetMultipleOf(val float64) {
+	sv.current.MultipleOf = &val
+}
+func (sv schemaValidations) SetMinItems(val int64) {
+	sv.current.MinItems = &val
+}
+func (sv schemaValidations) SetMaxItems(val int64) {
+	sv.current.MaxItems = &val
+}
+func (sv schemaValidations) SetMinLength(val int64) {
+	sv.current.MinLength = &val
+}
+func (sv schemaValidations) SetMaxLength(val int64) {
+	sv.current.MaxLength = &val
+}
+func (sv schemaValidations) SetPattern(val string) {
+	sv.current.Pattern = val
+}
+func (sv schemaValidations) SetUnique(val bool) {
+	sv.current.UniqueItems = val
+}
 
 func newSchemaAnnotationParser(goName string) *schemaAnnotationParser {
 	return &schemaAnnotationParser{GoName: goName, rx: rxModelOverride}
@@ -153,7 +169,7 @@ func (sd *schemaDecl) inferNames() (goName string, name string) {
 	goName = sd.TypeSpec.Name.Name
 	name = goName
 	if sd.Decl.Doc != nil {
-	DECLS:
+		DECLS:
 		for _, cmt := range sd.Decl.Doc.List {
 			for _, ln := range strings.Split(cmt.Text, "\n") {
 				matches := rxModelOverride.FindStringSubmatch(ln)
@@ -224,8 +240,12 @@ func (scp *schemaParser) parseDecl(definitions map[string]spec.Schema, decl *sch
 
 	// analyze doc comment for the model
 	sp := new(sectionedParser)
-	sp.setTitle = func(lines []string) { schema.Title = joinDropLast(lines) }
-	sp.setDescription = func(lines []string) { schema.Description = joinDropLast(lines) }
+	sp.setTitle = func(lines []string) {
+		schema.Title = joinDropLast(lines)
+	}
+	sp.setDescription = func(lines []string) {
+		schema.Description = joinDropLast(lines)
+	}
 	if err := sp.Parse(decl.Decl.Doc); err != nil {
 		return err
 	}
@@ -509,7 +529,7 @@ func (scp *schemaParser) parseInterfaceType(gofile *ast.File, bschema *spec.Sche
 							matches := rxAllOf.FindStringSubmatch(ln)
 							ml := len(matches)
 							if ml > 1 {
-								mv := matches[ml-1]
+								mv := matches[ml - 1]
 								if mv != "" {
 									bschema.AddExtension("x-class", mv)
 								}
@@ -550,7 +570,7 @@ func (scp *schemaParser) parseInterfaceType(gofile *ast.File, bschema *spec.Sche
 						matches := rxName.FindStringSubmatch(ln)
 						ml := len(matches)
 						if ml > 1 {
-							nm = matches[ml-1]
+							nm = matches[ml - 1]
 						}
 					}
 				}
@@ -616,7 +636,7 @@ func (scp *schemaParser) parseStructType(gofile *ast.File, bschema *spec.Schema,
 							matches := rxAllOf.FindStringSubmatch(ln)
 							ml := len(matches)
 							if ml > 1 {
-								mv := matches[ml-1]
+								mv := matches[ml - 1]
 								if mv != "" {
 									bschema.AddExtension("x-class", mv)
 								}
@@ -689,7 +709,9 @@ func (scp *schemaParser) parseStructType(gofile *ast.File, bschema *spec.Schema,
 func (scp *schemaParser) createParser(nm string, schema, ps *spec.Schema, fld *ast.Field) *sectionedParser {
 
 	sp := new(sectionedParser)
-	sp.setDescription = func(lines []string) { ps.Description = joinDropLast(lines) }
+	sp.setDescription = func(lines []string) {
+		ps.Description = joinDropLast(lines)
+	}
 	if ps.Ref.String() == "" {
 		sp.taggers = []tagParser{
 			newSingleLineTagParser("maximum", &setMaximum{schemaValidations{ps}, rxf(rxMaximumFmt, "")}),
@@ -708,7 +730,7 @@ func (scp *schemaParser) createParser(nm string, schema, ps *spec.Schema, fld *a
 
 		itemsTaggers := func(items *spec.Schema, level int) []tagParser {
 			// the expression is 1-index based not 0-index
-			itemsPrefix := fmt.Sprintf(rxItemsPrefixFmt, level+1)
+			itemsPrefix := fmt.Sprintf(rxItemsPrefixFmt, level + 1)
 			return []tagParser{
 				newSingleLineTagParser(fmt.Sprintf("items%dMaximum", level), &setMaximum{schemaValidations{items}, rxf(rxMaximumFmt, itemsPrefix)}),
 				newSingleLineTagParser(fmt.Sprintf("items%dMinimum", level), &setMinimum{schemaValidations{items}, rxf(rxMinimumFmt, itemsPrefix)}),
@@ -738,8 +760,8 @@ func (scp *schemaParser) createParser(nm string, schema, ps *spec.Schema, fld *a
 						sp.taggers = append(itemsTaggers(items.Schema, level), sp.taggers...)
 					}
 					break
-					//default:
-					//return fmt.Errorf("unknown field type (%T) ele for %q", iftpe, nm)
+				//default:
+				//return fmt.Errorf("unknown field type (%T) ele for %q", iftpe, nm)
 				}
 				items = items.Schema.Items
 				level = level + 1
@@ -754,9 +776,13 @@ func (scp *schemaParser) createParser(nm string, schema, ps *spec.Schema, fld *a
 }
 
 func (scp *schemaParser) packageForFile(gofile *ast.File) (*loader.PackageInfo, error) {
-	for pkg, pkgInfo := range scp.program.AllPackages {
-		if pkg.Name() == gofile.Name.Name {
-			return pkgInfo, nil
+	for _, pkgInfo := range scp.program.AllPackages {
+		if pkgInfo.Importable {
+			for _, fil := range pkgInfo.Files {
+				if fil.Pos() == gofile.Pos() {
+					return pkgInfo, nil
+				}
+			}
 		}
 	}
 	fn := scp.program.Fset.File(gofile.Pos()).Name()
@@ -780,7 +806,7 @@ func (scp *schemaParser) packageForSelector(gofile *ast.File, expr ast.Expr) (*l
 				}
 			} else {
 				parts := strings.Split(pv, "/")
-				if len(parts) > 0 && parts[len(parts)-1] == pth.Name {
+				if len(parts) > 0 && parts[len(parts) - 1] == pth.Name {
 					selPath = pv
 					break
 				}
