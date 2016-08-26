@@ -32,6 +32,7 @@ type SpecFile struct {
 	ScanModels bool           `long:"scan-models" short:"m" description:"includes models that were annotated with 'swagger:model'"`
 	Output     flags.Filename `long:"output" short:"o" description:"the file to write to"`
 	Input      flags.Filename `long:"input" short:"i" description:"the file to use as input"`
+	ExcludePath string         `long:"exclude-path" short:"e" description:"the path to exclude"`
 }
 
 // Execute runs this command
@@ -45,6 +46,7 @@ func (s *SpecFile) Execute(args []string) error {
 	opts.BasePath = s.BasePath
 	opts.Input = input
 	opts.ScanModels = s.ScanModels
+	opts.ExcludePaths = s.ExcludePath
 	swspec, err := scan.Application(opts)
 	if err != nil {
 		return err
