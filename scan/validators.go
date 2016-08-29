@@ -568,8 +568,12 @@ func (ss *setOpResponses) Parse(lines []string) error {
 			var isDefinitionRef bool
 			var ref spec.Ref
 			var err error
+			isDescription := false
 			if arrays == 0 {
-				if strings.HasPrefix(value, "body:") {
+				if strings.HasPrefix(value, "description:") {
+					isDescription = true
+					isDefinitionRef = true
+				} else if strings.HasPrefix(value, "body:") {
 					isDefinitionRef = true
 					ref, err = spec.NewRef("#/definitions/" + value[5:])
 				} else {
@@ -601,7 +605,12 @@ func (ss *setOpResponses) Parse(lines []string) error {
 			} else {
 				resp.Schema = new(spec.Schema)
 				if arrays == 0 {
-					resp.Schema.Ref = ref
+					if isDescription {
+						resp.Description = value[12:]
+					} else {
+						resp.Schema.Ref = ref
+						resp.Description = value[5:]
+					}
 				} else {
 					cs := resp.Schema
 					for i := 0; i < arrays; i++ {
@@ -611,6 +620,7 @@ func (ss *setOpResponses) Parse(lines []string) error {
 						cs = cs.Items.Schema
 					}
 					cs.Ref = ref
+					cs.Description = value[5:]
 				}
 			}
 
