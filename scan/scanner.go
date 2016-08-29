@@ -127,6 +127,7 @@ type Opts struct {
 	BasePath   string
 	Input      *spec.Swagger
 	ScanModels bool
+	ExcludePaths string
 }
 
 func safeConvert(str string) bool {
@@ -146,6 +147,12 @@ var Debug = safeConvert(os.Getenv("DEBUG"))
 // When something in the discovered items requires a type that is contained in the includes or excludes it will still be
 // in the spec.
 func Application(opts Opts) (*spec.Swagger, error) {
+	exclude := make([]packageFilter, 0)
+	paths := strings.Split(opts.ExcludePaths, ",")
+	for _, path := range paths {
+		p := packageFilter{Name:path}
+		exclude = append(exclude, p)
+	}
 	parser, err := newAppScanner(&opts, nil, nil)
 	if err != nil {
 		return nil, err
