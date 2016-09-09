@@ -153,7 +153,7 @@ func Application(opts Opts) (*spec.Swagger, error) {
 		p := packageFilter{Name:path}
 		exclude = append(exclude, p)
 	}
-	parser, err := newAppScanner(&opts, nil, nil)
+	parser, err := newAppScanner(&opts, nil, exclude)
 	if err != nil {
 		return nil, err
 	}
