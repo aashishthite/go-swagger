@@ -280,6 +280,7 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 			}
 		}
 
+		commaSeparated := false
 		for _, fld := range tpe.Fields.List {
 			if len(fld.Names) > 0 && fld.Names[0] != nil && fld.Names[0].IsExported() {
 				gnm := fld.Names[0].Name
@@ -313,7 +314,12 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 				if in == "formData" && fld.Doc != nil && fileParam(fld.Doc) {
 					pty.Typed("file", "")
 				} else {
-					if err := pp.scp.parseNamedType(gofile, fld.Type, pty); err != nil {
+					if ftpe, ok := fld.Type.(*ast.SelectorExpr); ok {
+						if ftpe.Sel.Name  == "CommaDelimitedString" {
+							pty.Typed("string", "")
+							commaSeparated = true
+						}
+					} else if err := pp.scp.parseNamedType(gofile, fld.Type, pty); err != nil {
 						return err
 					}
 				}
@@ -395,6 +401,10 @@ func (pp *paramStructParser) parseStructType(gofile *ast.File, operation *spec.O
 
 				if nm != gnm {
 					ps.AddExtension("x-go-name", gnm)
+				}
+
+				if commaSeparated {
+					ps.Description = "comma separated string for multiple inputs"
 				}
 				pt[nm] = ps
 			}
