@@ -62,9 +62,8 @@ func (s *ServeCmd) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
-	if sh == "0.0.0.0" {
-		sh = "localhost"
-	}
+
+	sh = "localhost"
 
 	visit := s.DocURL
 	handler := http.NotFoundHandler()
