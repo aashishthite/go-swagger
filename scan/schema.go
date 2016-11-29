@@ -481,7 +481,7 @@ func (scp *schemaParser) parseAllOfMember(gofile *ast.File, schema *spec.Schema,
 	}
 
 	sd := newSchemaDecl(file, gd, ts)
-	if sd.hasAnnotation() {
+	if sd.hasAnnotation() && pkg.String() != "time" && ts.Name.Name != "Time" {
 		ref, err := spec.NewRef("#/definitions/" + sd.Name)
 		if err != nil {
 			return err
@@ -621,6 +621,14 @@ func (scp *schemaParser) parseStructType(gofile *ast.File, bschema *spec.Schema,
 
 	for _, fld := range tpe.Fields.List {
 		if len(fld.Names) == 0 {
+			_, ignore, err := parseJSONTag(fld)
+			if err != nil {
+				return err
+			}
+			if ignore {
+				continue
+			}
+
 			// if this created an allOf property then we have to rejig the schema var
 			// because all the fields collected that aren't from embedded structs should go in
 			// their own proper schema
@@ -690,6 +698,10 @@ func (scp *schemaParser) parseStructType(gofile *ast.File, bschema *spec.Schema,
 			if err := parseProperty(scp, gofile, fld.Type, schemaTypable{&ps, 0}); err != nil {
 				return err
 			}
+			if strfmtName, ok := strfmtName(fld.Doc); ok {
+				ps.Typed("string", strfmtName)
+				ps.Ref = spec.Ref{}
+			}
 
 			if err := scp.createParser(nm, schema, &ps, fld).Parse(fld.Doc); err != nil {
 				return err
@@ -702,7 +714,7 @@ func (scp *schemaParser) parseStructType(gofile *ast.File, bschema *spec.Schema,
 			schema.Properties[nm] = ps
 		}
 	}
-	if schema != nil && hasAllOf {
+	if schema != nil && hasAllOf && len(schema.Properties) > 0 {
 		bschema.AllOf = append(bschema.AllOf, *schema)
 	}
 	for k := range schema.Properties {
@@ -807,9 +819,9 @@ func (scp *schemaParser) packageForFile(gofile *ast.File, tpe *ast.Ident) (*load
 	}
 	for pkg, pkgInfo := range scp.program.AllPackages {
 		if Debug {
-			log.Println("inferring for", tpe.Name, "at", pkg.Path(), "against", fgp)
+			log.Println("inferring for", tpe.Name, "with", gofile.Name.Name, "at", pkg.Path(), "against", filepath.ToSlash(fgp))
 		}
-		if pkg.Name() == gofile.Name.Name && fgp == pkg.Path() {
+		if pkg.Name() == gofile.Name.Name && filepath.ToSlash(fgp) == pkg.Path() {
 			return pkgInfo, nil
 		}
 	}
@@ -866,9 +878,13 @@ func (scp *schemaParser) packageForSelector(gofile *ast.File, expr ast.Expr) (*l
 	return nil, fmt.Errorf("can't determine selector path from %v", expr)
 }
 
-func (scp *schemaParser) makeRef(file *ast.File, gd *ast.GenDecl, ts *ast.TypeSpec, prop swaggerTypable) error {
+func (scp *schemaParser) makeRef(file *ast.File, pkg *loader.PackageInfo, gd *ast.GenDecl, ts *ast.TypeSpec, prop swaggerTypable) error {
 	sd := newSchemaDecl(file, gd, ts)
 	sd.inferNames()
+	// make an exception for time.Time because this is a well-known string format
+	if sd.Name == "Time" && pkg.String() == "time" {
+		return nil
+	}
 	ref, err := spec.NewRef("#/definitions/" + sd.Name)
 	if err != nil {
 		return err
@@ -915,25 +931,25 @@ func (scp *schemaParser) parseIdentProperty(pkg *loader.PackageInfo, expr *ast.I
 
 	switch tpe := ts.Type.(type) {
 	case *ast.ArrayType:
-		return scp.makeRef(file, gd, ts, prop)
+		return scp.makeRef(file, pkg, gd, ts, prop)
 	case *ast.StructType:
-		return scp.makeRef(file, gd, ts, prop)
+		return scp.makeRef(file, pkg, gd, ts, prop)
 
 	case *ast.Ident:
-		return scp.makeRef(file, gd, ts, prop)
+		return scp.makeRef(file, pkg, gd, ts, prop)
 
 	case *ast.StarExpr:
 		return parseProperty(scp, file, tpe.X, prop)
 
 	case *ast.SelectorExpr:
 		// return scp.refForSelector(file, gd, tpe, ts, prop)
-		return scp.makeRef(file, gd, ts, prop)
+		return scp.makeRef(file, pkg, gd, ts, prop)
 
 	case *ast.InterfaceType:
-		return scp.makeRef(file, gd, ts, prop)
+		return scp.makeRef(file, pkg, gd, ts, prop)
 
 	case *ast.MapType:
-		return scp.makeRef(file, gd, ts, prop)
+		return scp.makeRef(file, pkg, gd, ts, prop)
 
 	default:
 		err := swaggerSchemaForType(expr.Name, prop)
@@ -1106,7 +1122,9 @@ func parseProperty(scp *schemaParser, gofile *ast.File, fld ast.Expr, prop swagg
 }
 
 func parseJSONTag(field *ast.Field) (name string, ignore bool, err error) {
-	name = field.Names[0].Name
+	if len(field.Names) > 0 {
+		name = field.Names[0].Name
+	}
 	if field.Tag != nil && len(strings.TrimSpace(field.Tag.Value)) > 0 {
 		tv, err := strconv.Unquote(field.Tag.Value)
 		if err != nil {

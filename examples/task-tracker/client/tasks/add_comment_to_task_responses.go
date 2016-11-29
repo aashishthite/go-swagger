@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/validate"
 
 	strfmt "github.com/go-openapi/strfmt"
 
@@ -36,6 +34,9 @@ func (o *AddCommentToTaskReader) ReadResponse(response runtime.ClientResponse, c
 		result := NewAddCommentToTaskDefault(response.Code())
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
+		}
+		if response.Code()/100 == 2 {
+			return result, nil
 		}
 		return nil, result
 	}
@@ -106,61 +107,18 @@ func (o *AddCommentToTaskDefault) readResponse(response runtime.ClientResponse, 
 }
 
 /*AddCommentToTaskBody A comment to create
-
-These values can have github flavored markdown.
-
-
+//
+// These values can have github flavored markdown.
+//
 swagger:model AddCommentToTaskBody
 */
 type AddCommentToTaskBody struct {
 
-	/* content
-
-	Required: true
-	*/
+	// content
+	// Required: true
 	Content *string `json:"content"`
 
-	/* user Id
-
-	Required: true
-	*/
+	// user Id
+	// Required: true
 	UserID *int64 `json:"userId"`
-}
-
-// Validate validates this add comment to task body
-func (o *AddCommentToTaskBody) Validate(formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.validateContent(formats); err != nil {
-		// prop
-		res = append(res, err)
-	}
-
-	if err := o.validateUserID(formats); err != nil {
-		// prop
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *AddCommentToTaskBody) validateContent(formats strfmt.Registry) error {
-
-	if err := validate.Required("body"+"."+"content", "body", o.Content); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (o *AddCommentToTaskBody) validateUserID(formats strfmt.Registry) error {
-
-	if err := validate.Required("body"+"."+"userId", "body", o.UserID); err != nil {
-		return err
-	}
-
-	return nil
 }

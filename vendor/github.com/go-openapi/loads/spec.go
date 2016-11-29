@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"net/url"
 
+	"path/filepath"
+
 	"github.com/go-openapi/analysis"
 	"github.com/go-openapi/spec"
 	"github.com/go-openapi/swag"
@@ -39,7 +41,15 @@ type DocLoader func(string) (json.RawMessage, error)
 // DocMatcher represents a predicate to check if a loader matches
 type DocMatcher func(string) bool
 
-var loaders = &loader{Match: func(_ string) bool { return true }, Fn: JSONDoc}
+var (
+	loaders       *loader
+	defaultLoader *loader
+)
+
+func init() {
+	defaultLoader = &loader{Match: func(_ string) bool { return true }, Fn: JSONDoc}
+	loaders = &loader{Match: func(_ string) bool { return true }, Fn: JSONDoc}
+}
 
 // AddLoader for a document
 func AddLoader(predicate DocMatcher, load DocLoader) {
@@ -71,11 +81,12 @@ func JSONSpec(path string) (*Document, error) {
 // Document represents a swagger spec document
 type Document struct {
 	// specAnalyzer
-	Analyzer *analysis.Spec
-	spec     *spec.Swagger
-	origSpec *spec.Swagger
-	schema   *spec.Schema
-	raw      json.RawMessage
+	Analyzer     *analysis.Spec
+	spec         *spec.Swagger
+	specFilePath string
+	origSpec     *spec.Swagger
+	schema       *spec.Schema
+	raw          json.RawMessage
 }
 
 // Spec loads a new spec document
@@ -84,23 +95,32 @@ func Spec(path string) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
+	var lastErr error
 	for l := loaders.Next; l != nil; l = l.Next {
 		if loaders.Match(specURL.Path) {
 			b, err2 := loaders.Fn(path)
 			if err2 != nil {
-				return nil, err2
+				lastErr = err2
+				continue
 			}
 			return Analyzed(b, "")
 		}
 	}
-	b, err := loaders.Fn(path)
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	b, err := defaultLoader.Fn(path)
 	if err != nil {
 		return nil, err
 	}
-	return Analyzed(b, "")
-}
 
-var swag20Schema = spec.MustLoadSwagger20Schema()
+	document, err := Analyzed(b, "")
+	if document != nil {
+		document.specFilePath = path
+	}
+
+	return document, err
+}
 
 // Analyzed creates a new analyzed spec document
 func Analyzed(data json.RawMessage, version string) (*Document, error) {
@@ -123,7 +143,7 @@ func Analyzed(data json.RawMessage, version string) (*Document, error) {
 
 	d := &Document{
 		Analyzer: analysis.New(swspec),
-		schema:   swag20Schema,
+		schema:   spec.MustLoadSwagger20Schema(),
 		spec:     swspec,
 		raw:      data,
 		origSpec: origsqspec,
@@ -132,19 +152,29 @@ func Analyzed(data json.RawMessage, version string) (*Document, error) {
 }
 
 // Expanded expands the ref fields in the spec document and returns a new spec document
-func (d *Document) Expanded() (*Document, error) {
+func (d *Document) Expanded(options ...*spec.ExpandOptions) (*Document, error) {
 	swspec := new(spec.Swagger)
 	if err := json.Unmarshal(d.raw, swspec); err != nil {
 		return nil, err
 	}
-	if err := spec.ExpandSpec(swspec); err != nil {
+
+	var expandOptions *spec.ExpandOptions
+	if len(options) > 0 {
+		expandOptions = options[1]
+	} else {
+		expandOptions = &spec.ExpandOptions{
+			RelativeBase: filepath.Dir(d.specFilePath),
+		}
+	}
+
+	if err := spec.ExpandSpec(swspec, expandOptions); err != nil {
 		return nil, err
 	}
 
 	dd := &Document{
 		Analyzer: analysis.New(swspec),
 		spec:     swspec,
-		schema:   swag20Schema,
+		schema:   spec.MustLoadSwagger20Schema(),
 		raw:      d.raw,
 		origSpec: d.origSpec,
 	}

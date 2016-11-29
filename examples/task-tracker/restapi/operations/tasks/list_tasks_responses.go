@@ -4,10 +4,10 @@ package tasks
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/swag"
 
 	"github.com/go-swagger/go-swagger/examples/task-tracker/models"
 )
@@ -22,7 +22,9 @@ type ListTasksOK struct {
 	*/
 	XLastTaskID int64 `json:"X-Last-Task-Id"`
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload []*models.TaskCard `json:"body,omitempty"`
 }
 
@@ -57,10 +59,19 @@ func (o *ListTasksOK) SetPayload(payload []*models.TaskCard) {
 func (o *ListTasksOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	// response header X-Last-Task-Id
-	rw.Header().Add("X-Last-Task-Id", fmt.Sprintf("%v", o.XLastTaskID))
+
+	xLastTaskID := swag.FormatInt64(o.XLastTaskID)
+	if xLastTaskID != "" {
+		rw.Header().Set("X-Last-Task-Id", xLastTaskID)
+	}
 
 	rw.WriteHeader(200)
-	if err := producer.Produce(rw, o.Payload); err != nil {
+	payload := o.Payload
+	if payload == nil {
+		payload = make([]*models.TaskCard, 0, 50)
+	}
+
+	if err := producer.Produce(rw, payload); err != nil {
 		panic(err) // let the recovery middleware deal with this
 	}
 
@@ -72,7 +83,9 @@ swagger:response listTasksUnprocessableEntity
 */
 type ListTasksUnprocessableEntity struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.ValidationError `json:"body,omitempty"`
 }
 
@@ -97,7 +110,8 @@ func (o *ListTasksUnprocessableEntity) WriteResponse(rw http.ResponseWriter, pro
 
 	rw.WriteHeader(422)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -114,7 +128,9 @@ type ListTasksDefault struct {
 	*/
 	XErrorCode string `json:"X-Error-Code"`
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.Error `json:"body,omitempty"`
 }
 
@@ -166,11 +182,16 @@ func (o *ListTasksDefault) SetPayload(payload *models.Error) {
 func (o *ListTasksDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	// response header X-Error-Code
-	rw.Header().Add("X-Error-Code", fmt.Sprintf("%v", o.XErrorCode))
+
+	xErrorCode := o.XErrorCode
+	if xErrorCode != "" {
+		rw.Header().Set("X-Error-Code", xErrorCode)
+	}
 
 	rw.WriteHeader(o._statusCode)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}

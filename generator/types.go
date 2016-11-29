@@ -45,6 +45,7 @@ const (
 	xNullable   = "x-nullable"
 	xIsNullable = "x-isnullable"
 	sHTTP       = "http"
+	body        = "body"
 )
 
 var zeroes = map[string]string{
@@ -346,13 +347,19 @@ func (t *typeResolver) resolveFormat(schema *spec.Schema, isAnonymous bool, isRe
 }
 
 func (t *typeResolver) isNullable(schema *spec.Schema) bool {
-	return t.checkIsNullable(xIsNullable, schema) || t.checkIsNullable(xNullable, schema)
-}
+	check := func(extension string) (bool, bool) {
+		v, found := schema.Extensions[extension]
+		nullable, cast := v.(bool)
+		return nullable, found && cast
+	}
 
-func (t *typeResolver) checkIsNullable(extension string, schema *spec.Schema) bool {
-	v, found := schema.Extensions[extension]
-	nullable, cast := v.(bool)
-	return (found && cast && nullable) || len(schema.Properties) > 0
+	if nullable, ok := check(xIsNullable); ok {
+		return nullable
+	}
+	if nullable, ok := check(xNullable); ok {
+		return nullable
+	}
+	return len(schema.Properties) > 0
 }
 
 func (t *typeResolver) firstType(schema *spec.Schema) string {
@@ -564,11 +571,8 @@ func boolExtension(ext spec.Extensions, key string) *bool {
 
 func (t *typeResolver) ResolveSchema(schema *spec.Schema, isAnonymous, isRequired bool) (result resolvedType, err error) {
 	if Debug {
-		// bbb, _ := json.MarshalIndent(schema, "", "  ")
 		_, file, pos, _ := runtime.Caller(1)
 		log.Printf("%s:%d: resolving schema (anon: %t, req: %t) %s\n", filepath.Base(file), pos, isAnonymous, isRequired, t.ModelName /*bbb*/)
-		// tt, _ := json.MarshalIndent(t, "", "  ")
-		// log.Println("resolver", string(tt))
 	}
 	if schema == nil {
 		result.IsInterface = true
@@ -671,7 +675,7 @@ func (rt *resolvedType) Zero() string {
 		return zr
 	}
 	if rt.IsMap || rt.IsArray {
-		return "make(" + rt.GoType + ")"
+		return "make(" + rt.GoType + ", 0, 50)"
 	}
 	if rt.IsTuple || rt.IsComplexObject {
 		if rt.IsNullable {

@@ -1,8 +1,9 @@
 {{ define "clientresponse" }}// New{{ pascalize .Name }} creates a {{ pascalize .Name }} with default headers values
-func New{{ pascalize .Name }}({{ if eq .Code -1 }}code int{{ end }}{{ if .Schema }}{{ if and (eq .Code -1) .Schema.IsStream }},{{end}}{{ if .Schema.IsStream }}writer io.Writer{{ end }}{{ end }}) *{{ pascalize .Name }} {
+func New{{ pascalize .Name }}({{ if eq .Code -1 }}code int{{ end }}{{ if .Schema }}{{ if and (eq .Code -1) .Schema.IsStream }}, {{end}}{{ if .Schema.IsStream }}writer io.Writer{{ end }}{{ end }}) *{{ pascalize .Name }} {
   return &{{ pascalize .Name }}{
     {{ if eq .Code -1 }}_statusCode: code,
-    {{ end }}{{ range .Headers }}{{ if .HasDefault }}{{ pascalize .Name }}: {{ printf "%#v" .Default }},{{ end }}{{ end }}{{ if .Schema }}{{ if .Schema.IsStream }}Payload: writer,
+    {{ end }}{{ range .Headers }}{{ if .HasDefault }}{{ pascalize .Name }}: {{ printf "%#v" .Default }},
+    {{ end }}{{ end }}{{ if .Schema }}{{ if .Schema.IsStream }}Payload: writer,
     {{ end }}{{ end }}}
 }
 
@@ -102,28 +103,31 @@ type {{ pascalize .Name }}Reader struct {
 
 // ReadResponse reads a server response into the received {{ .ReceiverName }}.
 func ({{ .ReceiverName }} *{{ pascalize .Name }}Reader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
-  switch response.Code() {
-  {{ range $key, $value := .Responses }}
-    case {{ $key }}:
-      result := New{{ pascalize $value.Name }}({{ if $value.Schema }}{{ if $value.Schema.IsStream }}{{ $.ReceiverName }}.writer{{ end }}{{ end }})
+  {{ if .Responses}}switch response.Code() {
+  {{ end }}{{ range .Responses }}
+    case {{ .Code }}:
+      result := New{{ pascalize .Name }}({{ if .Schema }}{{ if .Schema.IsStream }}{{ $.ReceiverName }}.writer{{ end }}{{ end }})
       if err := result.readResponse(response, consumer, {{ $.ReceiverName }}.formats); err != nil {
         return nil, err
       }
-      return {{ if $value.IsSuccess }}result, nil{{else}}nil, result{{end}}
+      return {{ if .IsSuccess }}result, nil{{else}}nil, result{{end}}
   {{end}}{{ if .DefaultResponse }}{{ with .DefaultResponse }}
-    default:
-      result := New{{ pascalize .Name }}(response.Code(){{ if .Schema }}{{ if .Schema.IsStream }}, {{ $.ReceiverName }}.writer{{ end }}{{ end }})
+    {{ if $.Responses}}default:
+      {{ end }}result := New{{ pascalize .Name }}(response.Code(){{ if .Schema }}{{ if .Schema.IsStream }}, {{ $.ReceiverName }}.writer{{ end }}{{ end }})
       if err := result.readResponse(response, consumer, {{ $.ReceiverName }}.formats); err != nil {
         return nil, err
       }
-      return {{ if .IsSuccess }}result, nil{{else}}nil, result{{end}}{{ end }}{{else}}
-    default:
-      return nil, runtime.NewAPIError("unknown error", response, response.Code()){{ end }}
-  }
+      if response.Code() / 100 == 2 {
+        return result, nil
+      }
+      return nil, result{{ end }}{{else}}
+    {{ if $.Responses}}default:
+      {{ end }}return nil, runtime.NewAPIError("unknown error", response, response.Code()){{ end }}
+  {{ if .Responses}}}{{ end }}
 }
 
-{{ range $key, $value := .Responses }}
-{{ template "clientresponse" $value }}
+{{ range .Responses }}
+{{ template "clientresponse" . }}
 {{ end }}
 {{ if .DefaultResponse }}
 {{ template "clientresponse" .DefaultResponse }}

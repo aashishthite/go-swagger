@@ -11,39 +11,29 @@ import (
 	"github.com/go-openapi/validate"
 )
 
-/*Pet pet
-
-swagger:model Pet
-*/
+// Pet pet
+// swagger:model Pet
 type Pet struct {
 
-	/* category
-	 */
+	// category
 	Category *Category `json:"category,omitempty"`
 
-	/* id
-	 */
+	// id
 	ID int64 `json:"id,omitempty"`
 
-	/* name
-
-	Required: true
-	*/
+	// name
+	// Required: true
 	Name *string `json:"name"`
 
-	/* photo urls
-
-	Required: true
-	*/
+	// photo urls
+	// Required: true
 	PhotoUrls []string `json:"photoUrls"`
 
-	/* pet status in the store
-	 */
+	// pet status in the store
 	Status string `json:"status,omitempty"`
 
-	/* tags
-	 */
-	Tags []*Tag `json:"tags,omitempty"`
+	// tags
+	Tags []*Tag `json:"tags"`
 }
 
 // Validate validates this pet

@@ -41,11 +41,14 @@ func (a *Client) AddOne(params *AddOneParams, authInfo runtime.ClientAuthInfoWri
 		Params:             params,
 		Reader:             &AddOneReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*AddOneCreated), nil
+
 }
 
 /*
@@ -67,11 +70,14 @@ func (a *Client) DestroyOne(params *DestroyOneParams, authInfo runtime.ClientAut
 		Params:             params,
 		Reader:             &DestroyOneReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*DestroyOneNoContent), nil
+
 }
 
 /*
@@ -93,11 +99,14 @@ func (a *Client) Find(params *FindParams, authInfo runtime.ClientAuthInfoWriter)
 		Params:             params,
 		Reader:             &FindReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*FindOK), nil
+
 }
 
 /*
@@ -119,11 +128,14 @@ func (a *Client) UpdateOne(params *UpdateOneParams, authInfo runtime.ClientAuthI
 		Params:             params,
 		Reader:             &UpdateOneReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*UpdateOneOK), nil
+
 }
 
 // SetTransport changes the transport on the client

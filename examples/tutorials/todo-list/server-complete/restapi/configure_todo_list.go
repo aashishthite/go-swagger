@@ -6,9 +6,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/go-openapi/errors"
-	httpkit "github.com/go-openapi/runtime"
-	"github.com/go-openapi/runtime/middleware"
+	errors "github.com/go-openapi/errors"
+	runtime "github.com/go-openapi/runtime"
+	middleware "github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/swag"
 
 	"github.com/go-swagger/go-swagger/examples/tutorials/todo-list/server-complete/models"
@@ -18,20 +18,7 @@ import (
 
 // This file is safe to edit. Once it exists it will not be overwritten
 
-var exampleFlags = struct {
-	Example1 string `long:"example1" description:"Sample for showing how to configure cmd-line flags"`
-	Example2 string `long:"example2" description:"Further info at https://github.com/jessevdk/go-flags"`
-}{}
-
-func configureFlags(api *operations.TodoListAPI) {
-	api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{
-		swag.CommandLineOptionsGroup{
-			ShortDescription: "Example Flags",
-			LongDescription:  "",
-			Options:          &exampleFlags,
-		},
-	}
-}
+//go:generate swagger generate server --target .. --name TodoList --spec ../swagger.yml
 
 var items = make(map[int64]*models.Item)
 var lastID int64
@@ -101,13 +88,22 @@ func allItems(since int64, limit int32) (result []*models.Item) {
 	return
 }
 
+func configureFlags(api *operations.TodoListAPI) {
+	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
+}
+
 func configureAPI(api *operations.TodoListAPI) http.Handler {
 	// configure the api here
 	api.ServeError = errors.ServeError
 
-	api.JSONConsumer = httpkit.JSONConsumer()
+	// Set your custom logger if needed. Default one is log.Printf
+	// Expected interface func(string, ...interface{})
+	//
+	// Example:
+	// s.api.Logger = log.Printf
 
-	api.JSONProducer = httpkit.JSONProducer()
+	api.JSONConsumer = runtime.JSONConsumer()
+	api.JSONProducer = runtime.JSONProducer()
 
 	api.TodosAddOneHandler = todos.AddOneHandlerFunc(func(params todos.AddOneParams) middleware.Responder {
 		if err := addItem(params.Body); err != nil {

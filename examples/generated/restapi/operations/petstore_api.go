@@ -46,12 +46,13 @@ type PetstoreAPI struct {
 	formats         strfmt.Registry
 	defaultConsumes string
 	defaultProduces string
+	Middleware      func(middleware.Builder) http.Handler
 	// JSONConsumer registers a consumer for a "application/json" mime type
 	JSONConsumer runtime.Consumer
-	// XMLConsumer registers a consumer for a "application/xml" mime type
-	XMLConsumer runtime.Consumer
 	// UrlformConsumer registers a consumer for a "application/x-www-form-urlencoded" mime type
 	UrlformConsumer runtime.Consumer
+	// XMLConsumer registers a consumer for a "application/xml" mime type
+	XMLConsumer runtime.Consumer
 
 	// JSONProducer registers a producer for a "application/json" mime type
 	JSONProducer runtime.Producer
@@ -161,12 +162,12 @@ func (o *PetstoreAPI) Validate() error {
 		unregistered = append(unregistered, "JSONConsumer")
 	}
 
-	if o.XMLConsumer == nil {
-		unregistered = append(unregistered, "XMLConsumer")
-	}
-
 	if o.UrlformConsumer == nil {
 		unregistered = append(unregistered, "UrlformConsumer")
+	}
+
+	if o.XMLConsumer == nil {
+		unregistered = append(unregistered, "XMLConsumer")
 	}
 
 	if o.JSONProducer == nil {
@@ -300,11 +301,11 @@ func (o *PetstoreAPI) ConsumersFor(mediaTypes []string) map[string]runtime.Consu
 		case "application/json":
 			result["application/json"] = o.JSONConsumer
 
-		case "application/xml":
-			result["application/xml"] = o.XMLConsumer
-
 		case "application/x-www-form-urlencoded":
 			result["application/x-www-form-urlencoded"] = o.UrlformConsumer
+
+		case "application/xml":
+			result["application/xml"] = o.XMLConsumer
 
 		}
 	}
@@ -344,10 +345,17 @@ func (o *PetstoreAPI) HandlerFor(method, path string) (http.Handler, bool) {
 	return h, ok
 }
 
-func (o *PetstoreAPI) initHandlerCache() {
+// Context returns the middleware context for the petstore API
+func (o *PetstoreAPI) Context() *middleware.Context {
 	if o.context == nil {
 		o.context = middleware.NewRoutableContext(o.spec, o, nil)
 	}
+
+	return o.context
+}
+
+func (o *PetstoreAPI) initHandlerCache() {
+	o.Context() // don't care about the result, just that the initialization happened
 
 	if o.handlers == nil {
 		o.handlers = make(map[string]map[string]http.Handler)
@@ -448,9 +456,17 @@ func (o *PetstoreAPI) initHandlerCache() {
 // Serve creates a http handler to serve the API over HTTP
 // can be used directly in http.ListenAndServe(":8000", api.Serve(nil))
 func (o *PetstoreAPI) Serve(builder middleware.Builder) http.Handler {
+	o.Init()
+
+	if o.Middleware != nil {
+		return o.Middleware(builder)
+	}
+	return o.context.APIHandler(builder)
+}
+
+// Init allows you to just initialize the handler cache, you can then recompose the middelware as you see fit
+func (o *PetstoreAPI) Init() {
 	if len(o.handlers) == 0 {
 		o.initHandlerCache()
 	}
-
-	return o.context.APIHandler(builder)
 }

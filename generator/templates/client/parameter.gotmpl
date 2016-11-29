@@ -6,6 +6,9 @@ package {{ .Package }}
 import (
   "os"
   "net/http"
+
+  "golang.org/x/net/context"
+
   "github.com/go-openapi/runtime"
   "github.com/go-openapi/swag"
   "github.com/go-openapi/errors"
@@ -30,7 +33,7 @@ func New{{ pascalize .Name }}Params() *{{ pascalize .Name }}Params {
   return &{{ pascalize .Name}}Params{
   {{ range .Params }}{{ if .HasDefault }}{{ pascalize .Name}}: {{ if and (not .IsArray) (not .IsMap) (not .HasDiscriminator) (or .IsNullable  ) }}&{{ end }}{{ varname .ID }}Default,
   {{ end }}{{ end }}
-    timeout: cr.DefaultTimeout,
+    {{ camelize .TimeoutName }}: cr.DefaultTimeout,
   }
 }
 
@@ -38,13 +41,27 @@ func New{{ pascalize .Name }}Params() *{{ pascalize .Name }}Params {
 // with the default values initialized, and the ability to set a timeout on a request
 func New{{ pascalize .Name }}ParamsWithTimeout(timeout time.Duration) *{{ pascalize .Name }}Params {
   {{ if .Params }}var (
-  {{ range .Params }}{{ if .HasDefault }}{{ if not .IsFileParam }}{{ varname .ID}}Default {{ .GoType }} = {{ if .IsPrimitive}}{{.GoType}}({{ end}}{{ printf "%#v" .Default }}{{ if .IsPrimitive }}){{ end }}
+  {{ range .Params }}{{ if .HasDefault }}{{ if not .IsFileParam }}{{ varname .ID}}Default = {{ if .IsPrimitive}}{{.GoType}}({{ end}}{{ printf "%#v" .Default }}{{ if .IsPrimitive }}){{ end }}
   {{ end }}{{ end }}{{end}}
   ){{ end }}
   return &{{ pascalize .Name}}Params{
   {{ range .Params }}{{ if .HasDefault }}{{ pascalize .ID}}: {{ if and (not .IsArray) (not .IsMap) (not .HasDiscriminator) (or .IsNullable  ) }}&{{ end }}{{ varname .ID }}Default,
   {{ end }}{{ end }}
-    timeout: timeout,
+    {{ camelize .TimeoutName }}: timeout,
+  }
+}
+
+// New{{ pascalize .Name }}ParamsWithContext creates a new {{ pascalize .Name }}Params object
+// with the default values initialized, and the ability to set a context for a request
+func New{{ pascalize .Name }}ParamsWithContext(ctx context.Context) *{{ pascalize .Name }}Params {
+  {{ if .Params }}var (
+  {{ range .Params }}{{ if .HasDefault }}{{ if not .IsFileParam }}{{ camelize .Name}}Default = {{ if .IsPrimitive}}{{.GoType}}({{ end}}{{ printf "%#v" .Default }}{{ if .IsPrimitive }}){{ end }}
+  {{ end }}{{ end }}{{end}}
+  ){{ end }}
+  return &{{ pascalize .Name}}Params{
+  {{ range .Params }}{{ if .HasDefault }}{{ pascalize .Name}}: {{ if and (not .IsArray) (not .IsMap) (not .HasDiscriminator) (or .IsNullable  ) }}&{{ end }}{{ camelize .Name }}Default,
+  {{ end }}{{ end }}
+    Context: ctx,
   }
 }
 
@@ -60,21 +77,51 @@ type {{ pascalize .Name }}Params struct {
   {{ pascalize .ID }} {{ if and (not .IsArray) (not .IsMap) (not .HasDiscriminator) (not .IsInterface) (not .IsStream) (or .IsNullable  ) }}*{{ end }}{{ if not .IsFileParam }}{{ .GoType }}{{ else }}os.File{{end}}
   {{ end }}
 
-  timeout time.Duration
+  {{ camelize .TimeoutName }} time.Duration
+  Context context.Context
+  HTTPClient *http.Client
 }
+
+// With{{ pascalize .TimeoutName }} adds the timeout to the {{ humanize .Name }} params
+func ({{ .ReceiverName }} *{{ pascalize .Name }}Params) With{{ pascalize .TimeoutName }}(timeout time.Duration) *{{ pascalize .Name }}Params {
+  {{ .ReceiverName }}.Set{{ pascalize .TimeoutName }}(timeout)
+  return {{ .ReceiverName }}
+}
+
+// Set{{ pascalize .TimeoutName }} adds the timeout to the {{ humanize .Name }} params
+func ({{ .ReceiverName }} *{{ pascalize .Name }}Params) Set{{ pascalize .TimeoutName }}(timeout time.Duration) {
+  {{ .ReceiverName }}.{{ camelize .TimeoutName }} = timeout
+}
+
+// WithContext adds the context to the {{ humanize .Name }} params
+func ({{ .ReceiverName }} *{{ pascalize .Name }}Params) WithContext(ctx context.Context) *{{ pascalize .Name }}Params {
+  {{ .ReceiverName }}.SetContext(ctx)
+  return {{ .ReceiverName }}
+}
+
+// SetContext adds the context to the {{ humanize .Name }} params
+func ({{ .ReceiverName }} *{{ pascalize .Name }}Params) SetContext(ctx context.Context) {
+  {{ .ReceiverName }}.Context = ctx
+}
+
 
 {{ range .Params }}
 // With{{ pascalize .ID }} adds the {{ varname .Name  }} to the {{ humanize $.Name }} params
 func ({{ $.ReceiverName }} *{{ pascalize $.Name }}Params) With{{ pascalize .ID }}({{ varname .Name  }} {{ if and (not .IsArray) (not .IsMap) (not .HasDiscriminator) (not .IsStream) (or .IsNullable  ) }}*{{ end }}{{ if not .IsFileParam }}{{ .GoType }}{{ else }}os.File{{ end }}) *{{ pascalize $.Name }}Params {
-  {{ $.ReceiverName }}.{{ pascalize .ID }} = {{ varname .Name  }}
+  {{ $.ReceiverName }}.Set{{ pascalize .ID }}({{ varname .Name  }})
   return {{ .ReceiverName }}
+}
+
+// Set{{ pascalize .ID }} adds the {{ camelize .Name  }} to the {{ humanize $.Name }} params
+func ({{ $.ReceiverName }} *{{ pascalize $.Name }}Params) Set{{ pascalize .ID }}({{ varname .Name  }} {{ if and (not .IsArray) (not .IsMap) (not .HasDiscriminator) (not .IsStream) (or .IsNullable  ) }}*{{ end }}{{ if not .IsFileParam }}{{ .GoType }}{{ else }}os.File{{ end }}) {
+  {{ $.ReceiverName }}.{{ pascalize .ID }} = {{ varname .Name  }}
 }
 
 {{ end }}
 // WriteToRequest writes these params to a swagger request
 func ({{ .ReceiverName }} *{{ pascalize .Name }}Params) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
 
-  r.SetTimeout({{ .ReceiverName }}.timeout)
+  r.SetTimeout({{ .ReceiverName }}.{{ camelize .TimeoutName }})
   var res []error
   {{range .Params}}
 
@@ -94,12 +141,12 @@ func ({{ .ReceiverName }} *{{ pascalize .Name }}Params) WriteToRequest(r runtime
   {{ if not .AllowEmptyValue }}}{{ end }}
   {{ else if .IsPathParam }}
   // path param {{ .Name }}
-  if err := r.SetPathParam({{ printf "%q" .Name }}, {{ if .Formatter }}{{ .Formatter }}({{ if .IsNullable }}*{{end}}{{ .ValueExpression }}){{ else }}{{ if .IsNullable }}*{{end}}{{ .ValueExpression }}{{end}}); err != nil {
+  if err := r.SetPathParam({{ printf "%q" .Name }}, {{ if .Formatter }}{{ .Formatter }}({{ if .IsNullable }}*{{end}}{{ .ValueExpression }}){{ else }}{{ if .IsNullable }}*{{end}}{{ .ValueExpression }}{{ if .IsCustomFormatter }}.String(){{end}}{{end}}); err != nil {
     return err
   }
   {{ else if .IsHeaderParam }}
   // header param {{ .Name }}
-  if err := r.SetHeaderParam({{ printf "%q" .Name }}, {{ if .Formatter }}{{ .Formatter }}({{ if .IsNullable }}*{{end}}{{ .ValueExpression }}){{ else }}{{ if .IsNullable }}*{{end}}{{ .ValueExpression }}{{end}}); err != nil {
+  if err := r.SetHeaderParam({{ printf "%q" .Name }}, {{ if .Formatter }}{{ .Formatter }}({{ if .IsNullable }}*{{end}}{{ .ValueExpression }}){{ else }}{{ if .IsNullable }}*{{end}}{{ .ValueExpression }}{{ if .IsCustomFormatter }}.String(){{end}}{{end}}); err != nil {
     return err
   }
   {{ else if .IsFormParam }}

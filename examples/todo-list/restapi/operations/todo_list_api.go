@@ -39,6 +39,7 @@ type TodoListAPI struct {
 	formats         strfmt.Registry
 	defaultConsumes string
 	defaultProduces string
+	Middleware      func(middleware.Builder) http.Handler
 	// JSONConsumer registers a consumer for a "application/io.swagger.examples.todo-list.v1+json" mime type
 	JSONConsumer runtime.Consumer
 
@@ -46,7 +47,7 @@ type TodoListAPI struct {
 	JSONProducer runtime.Producer
 
 	// KeyAuth registers a function that takes a token and returns a principal
-	// it performs authentication based on an api key x-petstore-token provided in the header
+	// it performs authentication based on an api key x-todolist-token provided in the header
 	KeyAuth func(string) (interface{}, error)
 
 	// TodosAddOneHandler sets the operation handler for the add one operation
@@ -121,7 +122,7 @@ func (o *TodoListAPI) Validate() error {
 	}
 
 	if o.KeyAuth == nil {
-		unregistered = append(unregistered, "XPetstoreTokenAuth")
+		unregistered = append(unregistered, "XTodolistTokenAuth")
 	}
 
 	if o.TodosAddOneHandler == nil {
@@ -214,10 +215,17 @@ func (o *TodoListAPI) HandlerFor(method, path string) (http.Handler, bool) {
 	return h, ok
 }
 
-func (o *TodoListAPI) initHandlerCache() {
+// Context returns the middleware context for the todo list API
+func (o *TodoListAPI) Context() *middleware.Context {
 	if o.context == nil {
 		o.context = middleware.NewRoutableContext(o.spec, o, nil)
 	}
+
+	return o.context
+}
+
+func (o *TodoListAPI) initHandlerCache() {
+	o.Context() // don't care about the result, just that the initialization happened
 
 	if o.handlers == nil {
 		o.handlers = make(map[string]map[string]http.Handler)
@@ -248,9 +256,17 @@ func (o *TodoListAPI) initHandlerCache() {
 // Serve creates a http handler to serve the API over HTTP
 // can be used directly in http.ListenAndServe(":8000", api.Serve(nil))
 func (o *TodoListAPI) Serve(builder middleware.Builder) http.Handler {
+	o.Init()
+
+	if o.Middleware != nil {
+		return o.Middleware(builder)
+	}
+	return o.context.APIHandler(builder)
+}
+
+// Init allows you to just initialize the handler cache, you can then recompose the middelware as you see fit
+func (o *TodoListAPI) Init() {
 	if len(o.handlers) == 0 {
 		o.initHandlerCache()
 	}
-
-	return o.context.APIHandler(builder)
 }

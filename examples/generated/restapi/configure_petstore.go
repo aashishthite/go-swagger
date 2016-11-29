@@ -16,7 +16,7 @@ import (
 
 // This file is safe to edit. Once it exists it will not be overwritten
 
-//go:generate swagger generate server --target .. --name Petstore --spec ../swagger.json
+//go:generate swagger generate server --target .. --name Petstore --spec ..
 
 func configureFlags(api *operations.PetstoreAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
@@ -34,9 +34,9 @@ func configureAPI(api *operations.PetstoreAPI) http.Handler {
 
 	api.JSONConsumer = runtime.JSONConsumer()
 
-	api.XMLConsumer = runtime.XMLConsumer()
-
 	api.UrlformConsumer = runtime.DiscardConsumer
+
+	api.XMLConsumer = runtime.XMLConsumer()
 
 	api.JSONProducer = runtime.JSONProducer()
 
@@ -46,8 +46,9 @@ func configureAPI(api *operations.PetstoreAPI) http.Handler {
 		return nil, errors.NotImplemented("oauth2 bearer auth (petstore_auth) has not yet been implemented")
 	}
 
+	// Applies when the "api_key" header is set
 	api.APIKeyAuth = func(token string) (interface{}, error) {
-		return nil, errors.NotImplemented("api key auth (api_key) api_key from header has not yet been implemented")
+		return nil, errors.NotImplemented("api key auth (api_key) api_key from header param [api_key] has not yet been implemented")
 	}
 
 	api.PetAddPetHandler = pet.AddPetHandlerFunc(func(params pet.AddPetParams, principal interface{}) middleware.Responder {

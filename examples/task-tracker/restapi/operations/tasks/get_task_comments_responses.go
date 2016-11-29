@@ -4,7 +4,6 @@ package tasks
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime"
@@ -18,7 +17,9 @@ swagger:response getTaskCommentsOK
 */
 type GetTaskCommentsOK struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload []*models.Comment `json:"body,omitempty"`
 }
 
@@ -42,7 +43,12 @@ func (o *GetTaskCommentsOK) SetPayload(payload []*models.Comment) {
 func (o *GetTaskCommentsOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
-	if err := producer.Produce(rw, o.Payload); err != nil {
+	payload := o.Payload
+	if payload == nil {
+		payload = make([]*models.Comment, 0, 50)
+	}
+
+	if err := producer.Produce(rw, payload); err != nil {
 		panic(err) // let the recovery middleware deal with this
 	}
 
@@ -59,7 +65,9 @@ type GetTaskCommentsDefault struct {
 	*/
 	XErrorCode string `json:"X-Error-Code"`
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.Error `json:"body,omitempty"`
 }
 
@@ -111,11 +119,16 @@ func (o *GetTaskCommentsDefault) SetPayload(payload *models.Error) {
 func (o *GetTaskCommentsDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	// response header X-Error-Code
-	rw.Header().Add("X-Error-Code", fmt.Sprintf("%v", o.XErrorCode))
+
+	xErrorCode := o.XErrorCode
+	if xErrorCode != "" {
+		rw.Header().Set("X-Error-Code", xErrorCode)
+	}
 
 	rw.WriteHeader(o._statusCode)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}

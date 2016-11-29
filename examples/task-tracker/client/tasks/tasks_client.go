@@ -45,11 +45,14 @@ func (a *Client) AddCommentToTask(params *AddCommentToTaskParams, authInfo runti
 		Params:             params,
 		Reader:             &AddCommentToTaskReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*AddCommentToTaskCreated), nil
+
 }
 
 /*
@@ -76,11 +79,14 @@ func (a *Client) CreateTask(params *CreateTaskParams, authInfo runtime.ClientAut
 		Params:             params,
 		Reader:             &CreateTaskReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*CreateTaskCreated), nil
+
 }
 
 /*
@@ -105,11 +111,14 @@ func (a *Client) DeleteTask(params *DeleteTaskParams, authInfo runtime.ClientAut
 		Params:             params,
 		Reader:             &DeleteTaskReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*DeleteTaskNoContent), nil
+
 }
 
 /*
@@ -133,11 +142,14 @@ func (a *Client) GetTaskComments(params *GetTaskCommentsParams) (*GetTaskComment
 		Schemes:            []string{"http", "https"},
 		Params:             params,
 		Reader:             &GetTaskCommentsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*GetTaskCommentsOK), nil
+
 }
 
 /*
@@ -164,11 +176,14 @@ func (a *Client) GetTaskDetails(params *GetTaskDetailsParams) (*GetTaskDetailsOK
 		Schemes:            []string{"http", "https"},
 		Params:             params,
 		Reader:             &GetTaskDetailsReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*GetTaskDetailsOK), nil
+
 }
 
 /*
@@ -195,11 +210,14 @@ func (a *Client) ListTasks(params *ListTasksParams) (*ListTasksOK, error) {
 		Schemes:            []string{"http", "https"},
 		Params:             params,
 		Reader:             &ListTasksReader{formats: a.formats},
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*ListTasksOK), nil
+
 }
 
 /*
@@ -226,11 +244,14 @@ func (a *Client) UpdateTask(params *UpdateTaskParams, authInfo runtime.ClientAut
 		Params:             params,
 		Reader:             &UpdateTaskReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*UpdateTaskOK), nil
+
 }
 
 /*
@@ -254,11 +275,14 @@ func (a *Client) UploadTaskFile(params *UploadTaskFileParams, authInfo runtime.C
 		Params:             params,
 		Reader:             &UploadTaskFileReader{formats: a.formats},
 		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return result.(*UploadTaskFileCreated), nil
+
 }
 
 // SetTransport changes the transport on the client

@@ -6,10 +6,7 @@ package tasks
 import (
 	"net/http"
 
-	"github.com/go-openapi/errors"
 	middleware "github.com/go-openapi/runtime/middleware"
-	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/validate"
 )
 
 // AddCommentToTaskHandlerFunc turns a function with the right signature into a add comment to task handler
@@ -69,62 +66,18 @@ func (o *AddCommentToTask) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 }
 
-/*AddCommentToTaskBody A comment to create
-
-These values can have github flavored markdown.
-
-
-swagger:model AddCommentToTaskBody
-*/
+// AddCommentToTaskBody A comment to create
+//
+// These values can have github flavored markdown.
+//
+// swagger:model AddCommentToTaskBody
 type AddCommentToTaskBody struct {
 
-	/* content
-
-	Required: true
-	*/
+	// content
+	// Required: true
 	Content *string `json:"content"`
 
-	/* user Id
-
-	Required: true
-	*/
+	// user Id
+	// Required: true
 	UserID *int64 `json:"userId"`
-}
-
-// Validate validates this add comment to task body
-func (o *AddCommentToTaskBody) Validate(formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.validateContent(formats); err != nil {
-		// prop
-		res = append(res, err)
-	}
-
-	if err := o.validateUserID(formats); err != nil {
-		// prop
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-func (o *AddCommentToTaskBody) validateContent(formats strfmt.Registry) error {
-
-	if err := validate.Required("body"+"."+"content", "body", o.Content); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (o *AddCommentToTaskBody) validateUserID(formats strfmt.Registry) error {
-
-	if err := validate.Required("body"+"."+"userId", "body", o.UserID); err != nil {
-		return err
-	}
-
-	return nil
 }

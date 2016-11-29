@@ -26,19 +26,30 @@ func TestBuildDiscriminatorMap(t *testing.T) {
 	}
 }
 
+func opts() *GenOpts {
+	var opts GenOpts
+	opts.IncludeValidator = true
+	opts.IncludeModel = true
+	if err := opts.EnsureDefaults(false); err != nil {
+		panic(err)
+	}
+	return &opts
+}
+
 func TestGenerateModel_DiscriminatorSlices(t *testing.T) {
 	specDoc, err := loads.Spec("../fixtures/codegen/todolist.discriminators.yml")
 	if assert.NoError(t, err) {
 		definitions := specDoc.Spec().Definitions
 		k := "Kennel"
 		schema := definitions[k]
-		genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 		if assert.NoError(t, err) {
 			assert.True(t, genModel.HasBaseType)
 			buf := bytes.NewBuffer(nil)
-			err := modelTemplate.Execute(buf, genModel)
+			err := templates.MustGet("model").Execute(buf, genModel)
 			if assert.NoError(t, err) {
-				b, err := formatGoFile("has_discriminator.go", buf.Bytes())
+				b, err := opts.LanguageOpts.FormatContent("has_discriminator.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(b)
 					assertInCode(t, "type Kennel struct {", res)
@@ -61,15 +72,16 @@ func TestGenerateModel_Discriminators(t *testing.T) {
 
 		for _, k := range []string{"cat", "Dog"} {
 			schema := definitions[k]
-			genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+			opts := opts()
+			genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 			if assert.NoError(t, err) {
 				assert.True(t, genModel.IsComplexObject)
 				assert.Equal(t, "petType", genModel.DiscriminatorField)
 				assert.Equal(t, k, genModel.DiscriminatorValue)
 				buf := bytes.NewBuffer(nil)
-				err := modelTemplate.Execute(buf, genModel)
+				err := templates.MustGet("model").Execute(buf, genModel)
 				if assert.NoError(t, err) {
-					b, err := formatGoFile("discriminated.go", buf.Bytes())
+					b, err := opts.LanguageOpts.FormatContent("discriminated.go", buf.Bytes())
 					if assert.NoError(t, err) {
 						res := string(b)
 						assertNotInCode(t, "m.Pet.Validate", res)
@@ -104,7 +116,8 @@ func TestGenerateModel_Discriminators(t *testing.T) {
 
 		k := "Pet"
 		schema := definitions[k]
-		genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 		if assert.NoError(t, err) {
 			assert.True(t, genModel.IsComplexObject)
 			assert.Equal(t, "petType", genModel.DiscriminatorField)
@@ -113,9 +126,9 @@ func TestGenerateModel_Discriminators(t *testing.T) {
 			assert.Equal(t, "Cat", genModel.Discriminates["cat"])
 			assert.Equal(t, "Dog", genModel.Discriminates["Dog"])
 			buf := bytes.NewBuffer(nil)
-			err := modelTemplate.Execute(buf, genModel)
+			err := templates.MustGet("model").Execute(buf, genModel)
 			if assert.NoError(t, err) {
-				b, err := formatGoFile("with_discriminator.go", buf.Bytes())
+				b, err := opts.LanguageOpts.FormatContent("with_discriminator.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(b)
 					assertInCode(t, "type Pet interface {", res)
@@ -143,13 +156,14 @@ func TestGenerateModel_UsesDiscriminator(t *testing.T) {
 		definitions := specDoc.Spec().Definitions
 		k := "WithPet"
 		schema := definitions[k]
-		genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 		if assert.NoError(t, err) && assert.True(t, genModel.HasBaseType) {
 
 			buf := bytes.NewBuffer(nil)
-			err := modelTemplate.Execute(buf, genModel)
+			err := templates.MustGet("model").Execute(buf, genModel)
 			if assert.NoError(t, err) {
-				b, err := formatGoFile("has_discriminator.go", buf.Bytes())
+				b, err := opts.LanguageOpts.FormatContent("has_discriminator.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(b)
 					assertInCode(t, "type WithPet struct {", res)
@@ -185,9 +199,9 @@ func TestGenerateClient_OKResponseWithDiscriminator(t *testing.T) {
 			}
 			genOp, err := bldr.MakeOperation()
 			if assert.NoError(t, err) {
-				assert.True(t, genOp.Responses[200].Schema.IsBaseType)
+				assert.True(t, genOp.Responses[0].Schema.IsBaseType)
 				var buf bytes.Buffer
-				err := clientResponseTemplate.Execute(&buf, genOp)
+				err := templates.MustGet("clientResponse").Execute(&buf, genOp)
 				if assert.NoError(t, err) {
 					res := buf.String()
 					assertInCode(t, "Payload models.Pet", res)
@@ -221,9 +235,9 @@ func TestGenerateServer_Parameters(t *testing.T) {
 			}
 			genOp, err := bldr.MakeOperation()
 			if assert.NoError(t, err) {
-				assert.True(t, genOp.Responses[200].Schema.IsBaseType)
+				assert.True(t, genOp.Responses[0].Schema.IsBaseType)
 				var buf bytes.Buffer
-				err := parameterTemplate.Execute(&buf, genOp)
+				err := templates.MustGet("serverParameter").Execute(&buf, genOp)
 				if assert.NoError(t, err) {
 					res := buf.String()
 					assertInCode(t, "Pet models.Pet", res)
@@ -241,13 +255,14 @@ func TestGenerateModel_Discriminator_Billforward(t *testing.T) {
 		definitions := specDoc.Spec().Definitions
 		k := "FlatPricingComponent"
 		schema := definitions[k]
-		genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 		if assert.NoError(t, err) && assert.True(t, genModel.IsSubType) {
 
 			buf := bytes.NewBuffer(nil)
-			err := modelTemplate.Execute(buf, genModel)
+			err := templates.MustGet("model").Execute(buf, genModel)
 			if assert.NoError(t, err) {
-				b, err := formatGoFile("has_discriminator.go", buf.Bytes())
+				b, err := opts.LanguageOpts.FormatContent("has_discriminator.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(b)
 					//assertInCode(t, "err", res)
@@ -265,7 +280,8 @@ func TestGenerateModel_Bitbucket_Repository(t *testing.T) {
 		definitions := specDoc.Spec().Definitions
 		k := "repository"
 		schema := definitions[k]
-		genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 		if assert.NoError(t, err) {
 			assert.True(t, genModel.IsNullable)
 			for _, gm := range genModel.AllOf {
@@ -276,9 +292,9 @@ func TestGenerateModel_Bitbucket_Repository(t *testing.T) {
 				}
 			}
 			buf := bytes.NewBuffer(nil)
-			err := modelTemplate.Execute(buf, genModel)
+			err := templates.MustGet("model").Execute(buf, genModel)
 			if assert.NoError(t, err) {
-				b, err := formatGoFile("repository.go", buf.Bytes())
+				b, err := opts.LanguageOpts.FormatContent("repository.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(b)
 					assertInCode(t, "Parent *Repository", res)
@@ -295,12 +311,13 @@ func TestGenerateModel_Bitbucket_WebhookSubscription(t *testing.T) {
 		definitions := specDoc.Spec().Definitions
 		k := "webhook_subscription"
 		schema := definitions[k]
-		genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 		if assert.NoError(t, err) {
 			buf := bytes.NewBuffer(nil)
-			err := modelTemplate.Execute(buf, genModel)
+			err := templates.MustGet("model").Execute(buf, genModel)
 			if assert.NoError(t, err) {
-				b, err := formatGoFile("webhook_subscription.go", buf.Bytes())
+				b, err := opts.LanguageOpts.FormatContent("webhook_subscription.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(b)
 					assertInCode(t, "result.subjectField", res)
@@ -317,15 +334,123 @@ func TestGenerateModel_Issue319(t *testing.T) {
 		definitions := specDoc.Spec().Definitions
 		k := "Container"
 		schema := definitions[k]
-		genModel, err := makeGenDefinition(k, "models", schema, specDoc, true, true)
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
 		if assert.NoError(t, err) && assert.Equal(t, "map[string]Base", genModel.Properties[0].GoType) {
 			buf := bytes.NewBuffer(nil)
-			err := modelTemplate.Execute(buf, genModel)
+			err := templates.MustGet("model").Execute(buf, genModel)
 			if assert.NoError(t, err) {
-				b, err := formatGoFile("ifacedmap.go", buf.Bytes())
+				b, err := opts.LanguageOpts.FormatContent("ifacedmap.go", buf.Bytes())
 				if assert.NoError(t, err) {
 					res := string(b)
 					assertInCode(t, "MapNoWorky map[string]Base", res)
+				}
+			}
+		}
+	}
+}
+
+func TestGenerateModel_Issue541(t *testing.T) {
+	specDoc, err := loads.Spec("../fixtures/bugs/541/swagger.json")
+	if assert.NoError(t, err) {
+		definitions := specDoc.Spec().Definitions
+		k := "Lion"
+		schema := definitions[k]
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
+		if assert.NoError(t, err) && assert.NotEmpty(t, genModel.AllOf) {
+			buf := bytes.NewBuffer(nil)
+			err := templates.MustGet("model").Execute(buf, genModel)
+			if assert.NoError(t, err) {
+				b, err := opts.LanguageOpts.FormatContent("lion.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					res := string(b)
+					// fmt.Println(res)
+					assertInCode(t, "Cat", res)
+					assertInCode(t, "m.Cat.Validate(formats)", res)
+				}
+			}
+		}
+	}
+}
+
+func TestGenerateModel_Issue436(t *testing.T) {
+	specDoc, err := loads.Spec("../fixtures/bugs/436/swagger.yml")
+	if assert.NoError(t, err) {
+		definitions := specDoc.Spec().Definitions
+		k := "Image"
+		schema := definitions[k]
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
+		if assert.NoError(t, err) && assert.NotEmpty(t, genModel.AllOf) {
+			buf := bytes.NewBuffer(nil)
+			err := templates.MustGet("model").Execute(buf, genModel)
+			if assert.NoError(t, err) {
+				b, err := opts.LanguageOpts.FormatContent("lion.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					res := string(b)
+					// fmt.Println(res)
+					assertInCode(t, "Links", res)
+					assertInCode(t, "m.Links.Validate(formats)", res)
+					assertInCode(t, "Created *strfmt.DateTime `json:\"created\"`", res)
+					assertInCode(t, "ImageID *string `json:\"imageId\"`", res)
+					assertInCode(t, "Size *int64 `json:\"size\"`", res)
+				}
+			}
+		}
+	}
+}
+
+func TestGenerateModel_Issue740(t *testing.T) {
+	specDoc, err := loads.Spec("../fixtures/bugs/740/swagger.yml")
+	if assert.NoError(t, err) {
+		definitions := specDoc.Spec().Definitions
+		k := "Bar"
+		schema := definitions[k]
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
+		if assert.NoError(t, err) && assert.NotEmpty(t, genModel.AllOf) {
+			buf := bytes.NewBuffer(nil)
+			err := templates.MustGet("model").Execute(buf, genModel)
+			if assert.NoError(t, err) {
+				b, err := opts.LanguageOpts.FormatContent("bar.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					res := string(b)
+					assertInCode(t, "Foo", res)
+					assertInCode(t, "m.Foo.Validate(formats)", res)
+				}
+			}
+		}
+	}
+}
+
+func TestGenerateModel_Issue743(t *testing.T) {
+	specDoc, err := loads.Spec("../fixtures/bugs/743/swagger.yml")
+	if assert.NoError(t, err) {
+		definitions := specDoc.Spec().Definitions
+		k := "Awol"
+		schema := definitions[k]
+		opts := opts()
+		genModel, err := makeGenDefinition(k, "models", schema, specDoc, opts)
+		if assert.NoError(t, err) && assert.NotEmpty(t, genModel.AllOf) {
+			buf := bytes.NewBuffer(nil)
+			err := templates.MustGet("model").Execute(buf, genModel)
+			if assert.NoError(t, err) {
+				b, err := opts.LanguageOpts.FormatContent("awol.go", buf.Bytes())
+				if assert.NoError(t, err) {
+					res := string(b)
+					// fmt.Println(res)
+					assertInCode(t, "Foo", res)
+					assertInCode(t, "Bar", res)
+					assertInCode(t, "m.Foo.Validate(formats)", res)
+					assertInCode(t, "m.Bar.Validate(formats)", res)
+					assertInCode(t, "swag.WriteJSON(m.Foo)", res)
+					assertInCode(t, "swag.WriteJSON(m.Bar)", res)
+					assertInCode(t, "swag.ReadJSON(raw, &aO0)", res)
+					assertInCode(t, "swag.ReadJSON(raw, &aO1)", res)
+					assertInCode(t, "m.Foo = aO0", res)
+					assertInCode(t, "m.Bar = aO1", res)
+
 				}
 			}
 		}

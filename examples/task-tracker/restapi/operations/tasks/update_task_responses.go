@@ -4,7 +4,6 @@ package tasks
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime"
@@ -18,7 +17,9 @@ swagger:response updateTaskOK
 */
 type UpdateTaskOK struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.Task `json:"body,omitempty"`
 }
 
@@ -43,7 +44,8 @@ func (o *UpdateTaskOK) WriteResponse(rw http.ResponseWriter, producer runtime.Pr
 
 	rw.WriteHeader(200)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -55,7 +57,9 @@ swagger:response updateTaskUnprocessableEntity
 */
 type UpdateTaskUnprocessableEntity struct {
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.ValidationError `json:"body,omitempty"`
 }
 
@@ -80,7 +84,8 @@ func (o *UpdateTaskUnprocessableEntity) WriteResponse(rw http.ResponseWriter, pr
 
 	rw.WriteHeader(422)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
@@ -97,7 +102,9 @@ type UpdateTaskDefault struct {
 	*/
 	XErrorCode string `json:"X-Error-Code"`
 
-	// In: body
+	/*
+	  In: Body
+	*/
 	Payload *models.Error `json:"body,omitempty"`
 }
 
@@ -149,11 +156,16 @@ func (o *UpdateTaskDefault) SetPayload(payload *models.Error) {
 func (o *UpdateTaskDefault) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	// response header X-Error-Code
-	rw.Header().Add("X-Error-Code", fmt.Sprintf("%v", o.XErrorCode))
+
+	xErrorCode := o.XErrorCode
+	if xErrorCode != "" {
+		rw.Header().Set("X-Error-Code", xErrorCode)
+	}
 
 	rw.WriteHeader(o._statusCode)
 	if o.Payload != nil {
-		if err := producer.Produce(rw, o.Payload); err != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
 			panic(err) // let the recovery middleware deal with this
 		}
 	}
